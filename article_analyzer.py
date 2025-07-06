@@ -184,11 +184,42 @@ class Analyzer:
     async def get_categories(self, text: str) -> List[Dict[str, str]]:
         for attempt in range(3):
             await self.rate_limiter.wait_if_needed()
-            
+                        
             prompt = f"""
-            Given the following content, extract matching categories from this list:
-            {', '.join(CATEGORY_LIST)}
+            Analyze the following website content and identify which of these predefined categories are clearly present and relevant.
+        
+            AVAILABLE CATEGORIES:  {', '.join(CATEGORY_LIST)}
+            
+            IDENTIFICATION CRITERIA:
+            - Only select categories that have substantial, clear evidence in the content
+            - Look for specific keywords, topics, or themes that directly relate to each category
+            - Avoid selecting categories based on vague associations or single mentions
+            - Categories should represent meaningful content sections, not just passing references
+            - If unsure about a category, do not include it
+            
+            QUALITY THRESHOLDS:
+            - The category content should be informative and substantial (not just navigation links)
+            - Look for dedicated sections, detailed information, or primary focus areas
+            - Avoid categories that are only mentioned in headers, footers, or brief mentions
+            
+            EXAMPLES OF WHAT TO LOOK FOR:
+            - Technology: Detailed tech articles, product reviews, software tutorials, technical specifications
+            - Health: Medical advice, health conditions, treatments, wellness information, symptoms
+            - Business: Company news, financial information, industry analysis, business strategies
+            - Education: Course content, learning materials, academic information, tutorials
+            - Entertainment: Reviews, celebrity news, movies, games, recreational content
+            
+            For each category that meets these criteria, return it in this exact JSON format:
             Return JSON: [{{"category_name": "...", "text": ""}}]
+            Example:[{{"category_name": "exact category name from list", "text": ""}}]
+            
+            IMPORTANT:
+            - Use the exact category names from the provided list
+            - Only include categories with clear, substantial presence in the content
+            - The "text" field should remain empty as specified
+            - Return an empty array [] if no categories clearly match
+            - Return only the JSON array, no additional text or explanation
+            
             Content: {text[:3000]}
             """
             
@@ -208,11 +239,44 @@ class Analyzer:
     async def get_site_type(self, text: str) -> str:
         for attempt in range(3):
             await self.rate_limiter.wait_if_needed()
+    
             prompt = f"""
-            Classify this site into one: [blog, news, company, ecommerce, portfolio, forum, educational, medical, other]
+            Analyze the following website content and determine the primary type of website based on its main purpose and functionality.
+        
+            Return your answer in this exact JSON format:
             Return JSON: {{"site_type": "..."}}
+            
+            CLASSIFICATION GUIDELINES:
+            
+            - **educational**: Online learning platforms (Coursera, Khan Academy, Udemy), universities, schools, training sites
+            - **medical/health**: Medical journals, health information sites, medical databases, healthcare providers
+            - **research/academic**: Academic databases (PubMed, arXiv), research institutions, scientific journals
+            - **news**: News outlets, newspapers, magazines, current events sites
+            - **blog**: Personal blogs, opinion sites, lifestyle blogs, individual content creators
+            - **e-commerce**: Online stores, shopping sites, product catalogs with purchase functionality
+            - **company**: Corporate websites, business homepages, company information sites, cloud services
+            - **government**: Official government sites, public services, regulatory agencies
+            - **social media**: Social networks, community platforms, user-generated content hubs
+            - **forum**: Discussion boards, Q&A sites, community forums
+            - **portfolio**: Personal/professional portfolios, showcase sites, creative work displays
+            - **non-profit**: Charitable organizations, foundations, advocacy groups
+            
+            ANALYSIS CRITERIA:
+            1. Look for key indicators in the content (course listings, medical terms, research papers, product catalogs, etc.)
+            2. Consider the site's primary function and target audience
+            3. If multiple types apply, choose the most dominant/primary purpose
+            4. Pay attention to domain patterns (.edu, .gov, .org) but prioritize content over domain
+            
+            EXAMPLES:
+            - Coursera → educational (online courses and certifications)
+            - Medical News Today → medical/health (health information and medical news)
+            - PubMed → medical/health (medical research database)
+            
+            Return only the JSON object, no additional text.
+            
             Content: {text[:3000]}
             """
+            
             try:
                 logger.info(f"[LLM CALL][SiteType] Attempt {attempt+1}")
                 response = await asyncio.to_thread(self.llm.invoke, [HumanMessage(content=prompt)])
